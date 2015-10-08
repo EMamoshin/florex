@@ -1,16 +1,16 @@
 /*! React Starter Kit | MIT License | http://www.reactstarterkit.com/ */
 
-import React, { PropTypes, Component } from 'react';
+import React, { PropTypes } from 'react';
 import classNames from 'classnames';
 import styles from './Navigation.css';
 import withStyles from '../../decorators/withStyles';
 import Link from '../Link';
 
 @withStyles(styles)
-class Navigation extends Component {
+class Navigation {
 
   static propTypes = {
-    className: PropTypes.string,
+    className: PropTypes.string
   };
 
   render() {

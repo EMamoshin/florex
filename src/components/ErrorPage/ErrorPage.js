@@ -1,19 +1,19 @@
 /*! React Starter Kit | MIT License | http://www.reactstarterkit.com/ */
 
-import React, { PropTypes, Component } from 'react';
+import React, { PropTypes } from 'react';
 import withStyles from '../../decorators/withStyles';
 import styles from './ErrorPage.css';
 
 @withStyles(styles)
-class ErrorPage extends Component {
+class ErrorPage {
 
   static contextTypes = {
     onSetTitle: PropTypes.func.isRequired,
-    onPageNotFound: PropTypes.func.isRequired,
+    onPageNotFound: PropTypes.func.isRequired
   };
 
   render() {
-    const title = 'Error';
+    let title = 'Error';
     this.context.onSetTitle(title);
     return (
       <div>

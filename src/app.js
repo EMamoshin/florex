@@ -1,48 +1,56 @@
 /*! React Starter Kit | MIT License | http://www.reactstarterkit.com/ */
 
-import 'babel-core/polyfill';
+import 'babel/polyfill';
 import ReactDOM from 'react-dom';
 import FastClick from 'fastclick';
-import Router from './routes';
+import Dispatcher from './core/Dispatcher';
+import Router from './Router';
 import Location from './core/Location';
+import ActionTypes from './constants/ActionTypes';
 import { addEventListener, removeEventListener } from './utils/DOMUtils';
 
-let cssContainer = document.getElementById('css');
-const appContainer = document.getElementById('app');
+const container = document.getElementById('app');
 const context = {
   onSetTitle: value => document.title = value,
   onSetMeta: (name, content) => {
     // Remove and create a new <meta /> tag in order to make it work
     // with bookmarks in Safari
-    const elements = document.getElementsByTagName('meta');
+    let elements = document.getElementsByTagName('meta');
     [].slice.call(elements).forEach((element) => {
       if (element.getAttribute('name') === name) {
         element.parentNode.removeChild(element);
       }
     });
-    const meta = document.createElement('meta');
+    let meta = document.createElement('meta');
     meta.setAttribute('name', name);
     meta.setAttribute('content', content);
     document.getElementsByTagName('head')[0].appendChild(meta);
-  },
+  }
 };
 
+function cleanUp() {
+  let done = false;
+  if (!done) {
+    // Remove the pre-rendered CSS because it's no longer used
+    // after the React app is launched
+    const css = document.getElementById('css');
+    if (css) {
+      css.parentNode.removeChild(css);
+      done = true;
+    }
+  }
+}
+
 function render(state) {
-  Router.dispatch(state, (newState, component) => {
-    ReactDOM.render(component, appContainer, () => {
+  Router.dispatch(state, (_, component) => {
+    ReactDOM.render(component, container, () => {
       // Restore the scroll position if it was saved into the state
       if (state.scrollY !== undefined) {
         window.scrollTo(state.scrollX, state.scrollY);
       } else {
         window.scrollTo(0, 0);
       }
-
-      // Remove the pre-rendered CSS because it's no longer used
-      // after the React app is launched
-      if (cssContainer) {
-        cssContainer.parentNode.removeChild(cssContainer);
-        cssContainer = null;
-      }
+      cleanUp();
     });
   });
 }
@@ -61,25 +69,20 @@ function run() {
       path: location.pathname,
       query: location.query,
       state: location.state,
-      context,
+      context
     });
     render(currentState);
   });
 
   // Save the page scroll position into the current location's state
-  const supportPageOffset = window.pageXOffset !== undefined;
-  const isCSS1Compat = ((document.compatMode || '') === 'CSS1Compat');
+  var supportPageOffset = window.pageXOffset !== undefined;
+  var isCSS1Compat = ((document.compatMode || '') === 'CSS1Compat');
   const setPageOffset = () => {
     currentLocation.state = currentLocation.state || Object.create(null);
-    if (supportPageOffset) {
-      currentLocation.state.scrollX = window.pageXOffset;
-      currentLocation.state.scrollY = window.pageYOffset;
-    } else {
-      currentLocation.state.scrollX = isCSS1Compat ?
-        document.documentElement.scrollLeft : document.body.scrollLeft;
-      currentLocation.state.scrollY = isCSS1Compat ?
-        document.documentElement.scrollTop : document.body.scrollTop;
-    }
+    currentLocation.state.scrollX = supportPageOffset ? window.pageXOffset : isCSS1Compat ?
+      document.documentElement.scrollLeft : document.body.scrollLeft;
+    currentLocation.state.scrollY = supportPageOffset ? window.pageYOffset : isCSS1Compat ?
+      document.documentElement.scrollTop : document.body.scrollTop;
   };
 
   addEventListener(window, 'scroll', setPageOffset);

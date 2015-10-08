@@ -8,33 +8,27 @@
  */
 
 import path from 'path';
-import webpack from 'webpack';
-import merge from 'lodash.merge';
+import webpack, { DefinePlugin, BannerPlugin } from 'webpack';
+import merge from 'lodash/object/merge';
 
 const DEBUG = !process.argv.includes('release');
-const VERBOSE = process.argv.includes('verbose');
 const WATCH = global.WATCH === undefined ? false : global.WATCH;
+const VERBOSE = process.argv.includes('verbose');
+const STYLE_LOADER = 'style-loader/useable';
+const CSS_LOADER = DEBUG ? 'css-loader' : 'css-loader?minimize';
 const AUTOPREFIXER_BROWSERS = [
   'Android 2.3',
   'Android >= 4',
-  'Chrome >= 35',
-  'Firefox >= 31',
-  'Explorer >= 9',
-  'iOS >= 7',
+  'Chrome >= 20',
+  'Firefox >= 24',
+  'Explorer >= 8',
+  'iOS >= 6',
   'Opera >= 12',
-  'Safari >= 7.1',
+  'Safari >= 6'
 ];
 const GLOBALS = {
   'process.env.NODE_ENV': DEBUG ? '"development"' : '"production"',
-  __DEV__: DEBUG,
-};
-const JS_LOADER = {
-  test: /\.jsx?$/,
-  include: [
-    path.resolve(__dirname, '../node_modules/react-routing/src'),
-    path.resolve(__dirname, '../src'),
-  ],
-  loader: 'babel-loader',
+  '__DEV__': DEBUG
 };
 
 //
@@ -45,7 +39,7 @@ const JS_LOADER = {
 const config = {
   output: {
     publicPath: '/',
-    sourcePrefix: '  ',
+    sourcePrefix: '  '
   },
 
   cache: DEBUG,
@@ -60,44 +54,48 @@ const config = {
     chunks: VERBOSE,
     chunkModules: VERBOSE,
     cached: VERBOSE,
-    cachedAssets: VERBOSE,
+    cachedAssets: VERBOSE
   },
 
   plugins: [
-    new webpack.optimize.OccurenceOrderPlugin(),
+    new webpack.optimize.OccurenceOrderPlugin()
   ],
 
   resolve: {
-    extensions: ['', '.webpack.js', '.web.js', '.js', '.jsx'],
+    extensions: ['', '.webpack.js', '.web.js', '.js', '.jsx']
   },
 
   module: {
-    loaders: [
-      {
-        test: /\.json$/,
-        loader: 'json-loader',
-      }, {
-        test: /\.txt$/,
-        loader: 'raw-loader',
-      }, {
-        test: /\.(png|jpg|jpeg|gif|svg|woff|woff2)$/,
-        loader: 'url-loader?limit=10000',
-      }, {
-        test: /\.(eot|ttf|wav|mp3)$/,
-        loader: 'file-loader',
-      },
-    ],
+    loaders: [{
+      test: /\.txt/,
+      loader: 'file?name=[path][name].[ext]'
+    }, {
+      test: /\.gif/,
+      loader: 'url-loader?limit=10000&mimetype=image/gif'
+    }, {
+      test: /\.jpg/,
+      loader: 'url-loader?limit=10000&mimetype=image/jpg'
+    }, {
+      test: /\.png/,
+      loader: 'url-loader?limit=10000&mimetype=image/png'
+    }, {
+      test: /\.svg/,
+      loader: 'url-loader?limit=10000&mimetype=image/svg+xml'
+    }, {
+      test: /\.jsx?$/,
+      include: [
+        path.resolve(__dirname, '../node_modules/react-routing/src'),
+        path.resolve(__dirname, '../src')
+      ],
+      loaders: [...(WATCH ? ['react-hot'] : []), 'babel-loader']
+    }]
   },
 
-  postcss: function plugins() {
-    return [
-      require('postcss-import')({
-        onImport: files => files.forEach(this.addDependency),
-      }),
-      require('postcss-nested')(),
-      require('postcss-cssnext')({ autoprefixer: AUTOPREFIXER_BROWSERS }),
-    ];
-  },
+  postcss: [
+    require('postcss-nested')(),
+    require('cssnext')(),
+    require('autoprefixer-core')(AUTOPREFIXER_BROWSERS)
+  ]
 };
 
 //
@@ -105,66 +103,31 @@ const config = {
 // -----------------------------------------------------------------------------
 
 const appConfig = merge({}, config, {
-  entry: [
-    ...(WATCH ? ['webpack-hot-middleware/client'] : []),
-    './src/app.js',
-  ],
+  entry: [...(WATCH ? ['webpack-hot-middleware/client'] : []), './src/app.js'],
   output: {
     path: path.join(__dirname, '../build/public'),
-    filename: 'app.js',
+    filename: 'app.js'
   },
-
-  // Choose a developer tool to enhance debugging
-  // http://webpack.github.io/docs/configuration.html#devtool
-  devtool: DEBUG ? 'cheap-module-eval-source-map' : false,
+  devtool: DEBUG ? 'source-map' : false,
   plugins: [
     ...config.plugins,
-    new webpack.DefinePlugin(GLOBALS),
-    ...(!DEBUG ? [
+    new DefinePlugin(merge({}, GLOBALS, {'__SERVER__': false})),
+    ...(DEBUG ? [] : [
       new webpack.optimize.DedupePlugin(),
-      new webpack.optimize.UglifyJsPlugin({
-        compress: {
-          warnings: VERBOSE,
-        },
-      }),
-      new webpack.optimize.AggressiveMergingPlugin(),
-    ] : []),
+      new webpack.optimize.UglifyJsPlugin({compress: {warnings: VERBOSE}}),
+      new webpack.optimize.AggressiveMergingPlugin()
+    ]),
     ...(WATCH ? [
       new webpack.HotModuleReplacementPlugin(),
-      new webpack.NoErrorsPlugin(),
-    ] : []),
+      new webpack.NoErrorsPlugin()
+    ] : [])
   ],
   module: {
-    loaders: [
-      WATCH ? {
-        ...JS_LOADER,
-        query: {
-          // Wraps all React components into arbitrary transforms
-          // https://github.com/gaearon/babel-plugin-react-transform
-          plugins: ['react-transform'],
-          extra: {
-            'react-transform': {
-              transforms: [
-                {
-                  transform: 'react-transform-hmr',
-                  imports: ['react'],
-                  locals: ['module'],
-                }, {
-                  transform: 'react-transform-catch-errors',
-                  imports: ['react', 'redbox-react'],
-                },
-              ],
-            },
-          },
-        },
-      } : JS_LOADER,
-      ...config.module.loaders,
-      {
-        test: /\.css$/,
-        loader: 'style-loader/useable!css-loader!postcss-loader',
-      },
-    ],
-  },
+    loaders: [...config.module.loaders, {
+      test: /\.css$/,
+      loader: `${STYLE_LOADER}!${CSS_LOADER}!postcss-loader`
+    }]
+  }
 });
 
 //
@@ -176,17 +139,17 @@ const serverConfig = merge({}, config, {
   output: {
     path: './build',
     filename: 'server.js',
-    libraryTarget: 'commonjs2',
+    libraryTarget: 'commonjs2'
   },
   target: 'node',
   externals: [
-    function filter(context, request, cb) {
-      const isExternal =
+    function (context, request, cb) {
+      var isExternal =
         request.match(/^[a-z][a-z\/\.\-0-9]*$/i) &&
         !request.match(/^react-routing/) &&
         !context.match(/[\\/]react-routing/);
       cb(null, Boolean(isExternal));
-    },
+    }
   ],
   node: {
     console: false,
@@ -194,25 +157,21 @@ const serverConfig = merge({}, config, {
     process: false,
     Buffer: false,
     __filename: false,
-    __dirname: false,
+    __dirname: false
   },
-  devtool: 'source-map',
+  devtool: DEBUG ? 'source-map' : 'cheap-module-source-map',
   plugins: [
     ...config.plugins,
-    new webpack.DefinePlugin(GLOBALS),
-    new webpack.BannerPlugin('require("source-map-support").install();',
-      { raw: true, entryOnly: false }),
+    new DefinePlugin(merge({}, GLOBALS, {'__SERVER__': true})),
+    new BannerPlugin('require("source-map-support").install();',
+      { raw: true, entryOnly: false })
   ],
   module: {
-    loaders: [
-      JS_LOADER,
-      ...config.module.loaders,
-      {
-        test: /\.css$/,
-        loader: 'css-loader!postcss-loader',
-      },
-    ],
-  },
+    loaders: [...config.module.loaders, {
+      test: /\.css$/,
+      loader: `${CSS_LOADER}!postcss-loader`
+    }]
+  }
 });
 
 export default [appConfig, serverConfig];

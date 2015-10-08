@@ -1,5 +1,8 @@
 {
-  "preset": "airbnb",
+  "preset": "google",
+  "disallowSpacesInAnonymousFunctionExpression": null,
+  "validateLineBreaks": "LF",
+  "validateIndentation": 2,
   "excludeFiles": ["build/**", "node_modules/**"],
-  "validateQuoteMarks": null
+  "esprima": "esprima-fb"
 }
